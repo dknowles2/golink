@@ -38,6 +38,7 @@ var (
 	dev        = flag.String("dev-listen", "", "if non-empty, listen on this addr and run in dev mode; auto-set sqlitedb if empty and don't use tsnet")
 	snapshot   = flag.String("snapshot", "", "file path of snapshot file")
 	hostname   = flag.String("hostname", "go", "service name")
+	fallback   = flag.String("fallback", "", "fallback golink-type instance to use if a golink is not found in the local database")
 )
 
 var stats struct {
@@ -265,8 +266,16 @@ func serveGo(w http.ResponseWriter, r *http.Request) {
 
 	link, err := db.Load(short)
 	if errors.Is(err, fs.ErrNotExist) {
-		serveHome(w, short)
-		return
+		if *fallback != "" {
+			link = &Link{
+				Short: short,
+				Long: fmt.Sprintf("%s/%s", *fallback, short),
+			}
+			err = nil
+		} else {
+			serveHome(w, short)
+			return
+		}
 	}
 	if err != nil {
 		log.Printf("serving %q: %v", short, err)
